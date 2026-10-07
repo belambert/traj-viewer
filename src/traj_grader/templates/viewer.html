@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>__TITLE__</title>
+<style>
+  :root {
+    --bg: #fafaf9; --panel: #ffffff; --fg: #1c1917; --muted: #78716c; --border: #e7e5e4;
+    --code-bg: #f5f5f4; --accent: #2563eb;
+    --system: #a21caf; --user: #15803d; --assistant: #0e7490; --tool: #a16207;
+    --ok: #15803d; --bad: #b91c1c; --unk: #78716c;
+    --add-bg: #dcfce7; --del-bg: #fee2e2; --hunk: #6d28d9;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0c0a09; --panel: #1c1917; --fg: #e7e5e4; --muted: #a8a29e; --border: #292524;
+      --code-bg: #141210; --accent: #60a5fa;
+      --system: #e879f9; --user: #4ade80; --assistant: #22d3ee; --tool: #facc15;
+      --ok: #4ade80; --bad: #f87171; --unk: #a8a29e;
+      --add-bg: #052e16; --del-bg: #450a0a; --hunk: #a78bfa;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg);
+         font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .layout { display: grid; grid-template-columns: 320px 1fr; height: 100vh; }
+  aside { border-right: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0; background: var(--panel); }
+  aside header { padding: 12px; border-bottom: 1px solid var(--border); display: grid; gap: 8px; }
+  aside h1 { font-size: 13px; margin: 0; color: var(--muted); font-weight: 600; word-break: break-all; }
+  aside input, aside select { width: 100%; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px;
+                              background: var(--bg); color: var(--fg); font: inherit; }
+  #list { overflow-y: auto; flex: 1; list-style: none; margin: 0; padding: 0; }
+  #list li { padding: 8px 12px; border-bottom: 1px solid var(--border); cursor: pointer; }
+  #list li:hover { background: var(--code-bg); }
+  #list li.active { background: var(--code-bg); box-shadow: inset 3px 0 0 var(--accent); }
+  #list .iid { font-family: ui-monospace, monospace; font-size: 12px; word-break: break-all; }
+  #list .sub { font-size: 12px; color: var(--muted); display: flex; gap: 8px; align-items: center; }
+  main { overflow-y: auto; min-height: 0; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 20px 24px 80px; }
+  .badge { font-size: 11px; font-weight: 600; padding: 1px 8px; border-radius: 999px; border: 1px solid currentColor; }
+  .badge.ok { color: var(--ok); } .badge.bad { color: var(--bad); } .badge.unk { color: var(--unk); }
+  .meta { display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; margin: 12px 0 16px; }
+  .meta dt { color: var(--muted); } .meta dd { margin: 0; word-break: break-all; }
+  h2 { font-size: 18px; margin: 0; font-family: ui-monospace, monospace; word-break: break-all; }
+  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 16px; flex-wrap: wrap; }
+  .tabs button { background: none; border: none; padding: 8px 12px; cursor: pointer; color: var(--muted);
+                 font: inherit; border-bottom: 2px solid transparent; }
+  .tabs button.active { color: var(--fg); border-bottom-color: var(--accent); }
+  .toolbar { display: flex; gap: 12px; margin-bottom: 12px; font-size: 13px; color: var(--muted); flex-wrap: wrap; }
+  .toolbar label { display: flex; gap: 4px; align-items: center; cursor: pointer; }
+  .step { background: var(--panel); border: 1px solid var(--border); border-left: 3px solid var(--c);
+          border-radius: 6px; margin-bottom: 10px; }
+  .step > summary { padding: 6px 12px; cursor: pointer; display: flex; gap: 10px; align-items: baseline; list-style: none; }
+  .step > summary::-webkit-details-marker { display: none; }
+  .step .role { color: var(--c); font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+  .step .n { color: var(--muted); font-size: 12px; font-family: ui-monospace, monospace; }
+  .step .preview { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+  .step[open] .preview { display: none; }
+  .step .body { padding: 0 12px 10px; display: grid; gap: 8px; }
+  .role-system { --c: var(--system); } .role-user { --c: var(--user); }
+  .role-assistant { --c: var(--assistant); } .role-tool { --c: var(--tool); }
+  pre { margin: 0; padding: 8px 10px; background: var(--code-bg); border-radius: 4px; overflow-x: auto;
+        white-space: pre-wrap; word-break: break-word; font: 12.5px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .text { white-space: pre-wrap; word-break: break-word; }
+  .reasoning { font-style: italic; color: var(--muted); border-left: 2px solid var(--border); padding-left: 10px; white-space: pre-wrap; }
+  .call-name { font-size: 12px; font-weight: 600; color: var(--accent); font-family: ui-monospace, monospace; }
+  .clamp { max-height: 24em; overflow: hidden; position: relative; }
+  .more { font-size: 12px; color: var(--accent); background: none; border: none; cursor: pointer; padding: 2px 0; font: inherit; }
+  .diff .add { background: var(--add-bg); display: block; } .diff .del { background: var(--del-bg); display: block; }
+  .diff .hunk { color: var(--hunk); display: block; } .diff .file { font-weight: 700; display: block; }
+  .empty { color: var(--muted); padding: 40px; text-align: center; }
+  kbd { font: 11px ui-monospace, monospace; border: 1px solid var(--border); border-radius: 3px; padding: 0 4px; }
+  @media (max-width: 760px) {
+    .layout { grid-template-columns: 1fr; grid-template-rows: 40vh 1fr; }
+    aside { border-right: none; border-bottom: 1px solid var(--border); }
+    .wrap { padding: 16px; }
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+  <aside>
+    <header>
+      <h1 id="src"></h1>
+      <input id="q" type="search" placeholder="Filter by instance / model…">
+      <select id="outcome">
+        <option value="">All outcomes</option>
+        <option value="true">Resolved</option>
+        <option value="false">Unresolved</option>
+        <option value="null">Unknown</option>
+      </select>
+      <div style="font-size:12px;color:var(--muted)"><span id="count"></span> · <kbd>j</kbd>/<kbd>k</kbd> to navigate</div>
+    </header>
+    <ul id="list"></ul>
+  </aside>
+  <main><div class="wrap" id="detail"><div class="empty">Select a trajectory</div></div></main>
+</div>
+
+<script type="application/json" id="data">__DATA__</script>
+<script>
+const DATA = JSON.parse(document.getElementById("data").textContent);
+const trajs = DATA.trajectories;
+const state = { filtered: trajs.map((_, i) => i), current: null, tab: "steps",
+                showSystem: false, expandAll: true };
+
+const $ = (s) => document.querySelector(s);
+const el = (tag, attrs = {}, ...kids) => {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === "class") e.className = v; else if (k.startsWith("on")) e.addEventListener(k.slice(2), v);
+    else if (v !== false && v != null) e.setAttribute(k, v === true ? "" : v);
+  }
+  for (const kid of kids.flat()) if (kid != null) e.append(kid instanceof Node ? kid : document.createTextNode(String(kid)));
+  return e;
+};
+const badge = (r) => r === true ? el("span", { class: "badge ok" }, "resolved")
+                 : r === false ? el("span", { class: "badge bad" }, "unresolved")
+                 : el("span", { class: "badge unk" }, "unknown");
+
+// Long blocks start clamped with a "show more" toggle.
+function clamped(node) {
+  const box = el("div", {}, node);
+  requestAnimationFrame(() => {
+    if (node.scrollHeight > 400) {
+      node.classList.add("clamp");
+      const btn = el("button", { class: "more", onclick: () => {
+        const c = node.classList.toggle("clamp");
+        btn.textContent = c ? "show more ▾" : "show less ▴";
+      }}, "show more ▾");
+      box.append(btn);
+    }
+  });
+  return box;
+}
+
+function diffBlock(text) {
+  const pre = el("pre", { class: "diff" });
+  for (const line of text.split("\n")) {
+    const cls = line.startsWith("+++") || line.startsWith("---") || line.startsWith("diff --git") ? "file"
+              : line.startsWith("+") ? "add" : line.startsWith("-") ? "del" : line.startsWith("@@") ? "hunk" : null;
+    pre.append(cls ? el("span", { class: cls }, line) : line + "\n");
+  }
+  return pre;
+}
+
+function toolCall(call) {
+  let args = call.arguments, parsed = null;
+  try { parsed = JSON.parse(args); } catch {}
+  let body;
+  if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+    // Show long string args (commands, file contents) as their own readable blocks.
+    body = el("div", { style: "display:grid;gap:4px" }, Object.entries(parsed).map(([k, v]) =>
+      el("div", {}, el("span", { class: "n" }, k + ": "),
+         typeof v === "string" && (v.includes("\n") || v.length > 80) ? clamped(el("pre", {}, v))
+         : el("code", {}, typeof v === "string" ? v : JSON.stringify(v)))));
+  } else {
+    body = clamped(el("pre", {}, args));
+  }
+  return el("div", {}, el("div", { class: "call-name" }, "→ " + call.name), body);
+}
+
+function preview(step) {
+  const s = step.content || (step.tool_calls[0] && (step.tool_calls[0].name + " " + step.tool_calls[0].arguments)) || "";
+  return s.replace(/\s+/g, " ").slice(0, 160);
+}
+
+function stepNode(step, n) {
+  const body = el("div", { class: "body" });
+  if (step.reasoning) body.append(clamped(el("div", { class: "reasoning" }, step.reasoning)));
+  if (step.content && step.content.trim())
+    body.append(clamped(step.role === "tool" ? el("pre", {}, step.content) : el("div", { class: "text" }, step.content)));
+  for (const c of step.tool_calls) body.append(toolCall(c));
+  const open = step.role === "system" ? false : state.expandAll;
+  return el("details", { class: `step role-${step.role}`, open, id: `step-${n}` },
+    el("summary", {}, el("span", { class: "n" }, "#" + n), el("span", { class: "role" }, step.role),
+       step.trainable === false ? el("span", { class: "n" }, "masked") : null,
+       el("span", { class: "preview" }, preview(step))),
+    body);
+}
+
+function renderDetail() {
+  const t = trajs[state.current];
+  const d = $("#detail");
+  d.replaceChildren();
+  if (!t) { d.append(el("div", { class: "empty" }, "Select a trajectory")); return; }
+
+  const meta = el("dl", { class: "meta" });
+  const add = (k, v) => v != null && v !== "" && meta.append(el("dt", {}, k), el("dd", {}, v));
+  add("source", `${t.source} · row ${t.index}`);
+  add("model", t.model);
+  add("outcome", badge(t.resolved));
+  add("exit status", t.exit_status);
+  add("steps", `${t.steps.length} (${t.steps.filter(s => s.role === "assistant").length} assistant, ` +
+               `${t.steps.reduce((a, s) => a + s.tool_calls.length, 0)} tool calls)`);
+  d.append(el("h2", {}, t.instance_id), meta);
+
+  const tabs = [["steps", "Trajectory"], ["patch", "Model patch", t.patch], ["ref", "Reference patch", t.reference_patch],
+                ["eval", "Eval logs", t.eval_logs], ["tools", "Tools", t.tools.length ? t.tools : null],
+                ["meta", "Metadata", Object.keys(t.metadata).length ? t.metadata : null]]
+    .filter(([k, , v]) => k === "steps" || v);
+  if (!tabs.some(([k]) => k === state.tab)) state.tab = "steps";
+  d.append(el("div", { class: "tabs" }, tabs.map(([k, label]) =>
+    el("button", { class: k === state.tab ? "active" : "", onclick: () => { state.tab = k; renderDetail(); } }, label))));
+
+  if (state.tab === "steps") {
+    d.append(el("div", { class: "toolbar" },
+      el("label", {}, el("input", { type: "checkbox", checked: state.showSystem,
+         onchange: (e) => { state.showSystem = e.target.checked; renderDetail(); } }), "show system prompt"),
+      el("label", {}, el("input", { type: "checkbox", checked: state.expandAll,
+         onchange: (e) => { state.expandAll = e.target.checked; renderDetail(); } }), "expand steps")));
+    t.steps.forEach((s, n) => { if (s.role !== "system" || state.showSystem) d.append(stepNode(s, n)); });
+  } else if (state.tab === "patch") d.append(diffBlock(t.patch));
+  else if (state.tab === "ref") d.append(diffBlock(t.reference_patch));
+  else if (state.tab === "eval") d.append(el("pre", {}, t.eval_logs));
+  else if (state.tab === "tools") d.append(el("pre", {}, JSON.stringify(t.tools, null, 2)));
+  else if (state.tab === "meta") d.append(el("pre", {}, JSON.stringify(t.metadata, null, 2)));
+  $("main").scrollTop = 0;
+}
+
+function renderList() {
+  const q = $("#q").value.toLowerCase(), oc = $("#outcome").value;
+  state.filtered = trajs.map((_, i) => i).filter((i) => {
+    const t = trajs[i];
+    if (oc && String(t.resolved) !== oc) return false;
+    return !q || `${t.instance_id} ${t.model || ""} ${t.id}`.toLowerCase().includes(q);
+  });
+  $("#count").textContent = `${state.filtered.length} / ${trajs.length}`;
+  $("#list").replaceChildren(...state.filtered.map((i) => {
+    const t = trajs[i];
+    return el("li", { class: i === state.current ? "active" : "", "data-i": i, onclick: () => select(i) },
+      el("div", { class: "iid" }, t.instance_id),
+      el("div", { class: "sub" }, badge(t.resolved), `row ${t.index}`, `${t.steps.length} steps`, t.model || ""));
+  }));
+}
+
+function select(i) {
+  state.current = i;
+  history.replaceState(null, "", "#" + i);
+  document.querySelectorAll("#list li").forEach((li) => li.classList.toggle("active", +li.dataset.i === i));
+  document.querySelector(`#list li[data-i="${i}"]`)?.scrollIntoView({ block: "nearest" });
+  renderDetail();
+}
+
+function move(delta) {
+  const pos = state.filtered.indexOf(state.current);
+  const next = state.filtered[Math.max(0, Math.min(state.filtered.length - 1, pos + delta))];
+  if (next != null) select(next);
+}
+
+$("#src").textContent = DATA.title;
+$("#q").addEventListener("input", renderList);
+$("#outcome").addEventListener("change", renderList);
+document.addEventListener("keydown", (e) => {
+  if (e.target.matches("input, select, textarea")) return;
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.key === "j") move(1);
+  if (e.key === "k") move(-1);
+});
+renderList();
+const initial = parseInt(location.hash.slice(1), 10);
+select(Number.isInteger(initial) && trajs[initial] ? initial : 0);
+</script>
+</body>
+</html>
