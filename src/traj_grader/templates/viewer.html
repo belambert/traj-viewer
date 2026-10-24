@@ -230,7 +230,8 @@ function renderList() {
     const t = trajs[i];
     return el("li", { class: i === state.current ? "active" : "", "data-i": i, onclick: () => select(i) },
       el("div", { class: "iid" }, t.instance_id),
-      el("div", { class: "sub" }, badge(t.resolved), `row ${t.index}`, `${t.steps.length} steps`, t.model || ""));
+      el("div", { class: "sub" }, badge(t.resolved),
+        ...[`row ${t.index}`, `${t.steps.length} steps`, t.model || ""].map((s) => el("span", {}, s))));
   }));
 }
 
