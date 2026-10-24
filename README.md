@@ -27,5 +27,19 @@ uv run traj-grader show nebius/SWE-agent-trajectories 0 --html
 
 Local `.jsonl`, `.json` and `.parquet` files work in place of a dataset id.
 
+## Screenshots
+
+`list` summarizes a range of trajectories:
+
+![traj-grader list](docs/img/list.png)
+
+`show` prints one trajectory step by step (long messages are truncated unless `--full` is passed):
+
+![traj-grader show](docs/img/show.png)
+
+`html` builds a self-contained viewer with filtering and keyboard navigation:
+
+![traj-grader html](docs/img/html.png)
+
 Hub datasets are read from the Hub's auto-converted parquet branch one row group at a time,
 so peeking at a few rows doesn't download the whole dataset.
