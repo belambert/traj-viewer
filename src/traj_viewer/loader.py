@@ -13,7 +13,9 @@ handles hang the interpreter at exit.
 from __future__ import annotations
 
 import json
+import sqlite3
 from collections.abc import Iterator
+from contextlib import closing
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -24,7 +26,8 @@ from huggingface_hub import HfFileSystem
 from traj_viewer.adapters import Adapter, detect_adapter, get_adapter
 from traj_viewer.models import Trajectory
 
-_LOCAL_SUFFIXES = {".jsonl", ".json", ".parquet"}
+_LOCAL_SUFFIXES = {".jsonl", ".json", ".parquet", ".db"}
+OPENCODE_DB = Path("~/.local/share/opencode/opencode.db").expanduser()
 _BLOCK_SIZE = 8 << 20  # bigger HTTP range reads; row groups are often tens of MB
 
 
@@ -65,7 +68,9 @@ class Source:
         return ":".join(parts)
 
     def resolve(self) -> Source:
-        """Fill in default config/split for Hub datasets."""
+        """Fill in default config/split for Hub datasets; `opencode` means the local opencode DB."""
+        if self.path == "opencode":
+            return Source(str(OPENCODE_DB))
         if _is_local(self.path):
             return Source(self.path)
         config = self.config or list_configs(self.path)[0]
@@ -86,6 +91,19 @@ def _iter_parquet(open_file, start: int) -> Iterator[dict[str, Any]]:
             start = 0
 
 
+def _iter_opencode(path: Path, start: int) -> Iterator[dict[str, Any]]:
+    """Yield one row per opencode session, with its messages and their parts inlined."""
+    # read-only so a running opencode isn't disturbed
+    with closing(sqlite3.connect(f"file:{path}?mode=ro", uri=True)) as con:
+        con.row_factory = sqlite3.Row
+        for s in con.execute("select * from session order by time_created limit -1 offset ?", (start,)):
+            messages = []
+            for m in con.execute("select id, data from message where session_id = ? order by time_created, id", (s["id"],)):
+                parts = [json.loads(p["data"]) for p in con.execute("select data from part where message_id = ? order by id", (m["id"],))]
+                messages.append({**json.loads(m["data"]), "parts": parts})
+            yield {"instance_id": s["id"], "session": dict(s), "oc_messages": messages}
+
+
 def _hub_files(source: Source) -> list[str]:
     base = f"{_parquet_root(source.path)}/{source.config}"
     fs = _fs()
@@ -99,7 +117,9 @@ def _hub_files(source: Source) -> list[str]:
 def _iter_rows(source: Source, start: int) -> Iterator[dict[str, Any]]:
     if _is_local(source.path):
         path = Path(source.path)
-        if path.suffix.lower() == ".parquet":
+        if path.suffix.lower() == ".db":
+            yield from _iter_opencode(path, start)
+        elif path.suffix.lower() == ".parquet":
             yield from _iter_parquet(lambda: open(path, "rb"), start)
         else:
             with open(path) as f:

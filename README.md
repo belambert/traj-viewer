@@ -6,6 +6,7 @@ Supported formats (auto-detected from columns, see `src/traj_viewer/adapters.py`
 
 - **swe-agent** — `trajectory` list, e.g. `nebius/SWE-agent-trajectories`
 - **chat-messages** — OpenAI-style `messages` with `tool_calls`, e.g. `nvidia/Open-SWE-Traces`
+- **opencode** — local [opencode](https://opencode.ai) sessions, one trajectory per session
 
 ## Usage
 
@@ -26,6 +27,12 @@ uv run traj-viewer show nebius/SWE-agent-trajectories 0 --html
 ```
 
 Local `.jsonl`, `.json` and `.parquet` files work in place of a dataset id.
+
+Use `opencode` as the dataset id to browse your local opencode sessions (read from
+`~/.local/share/opencode/opencode.db`, or pass another `.db` path):
+
+    uv run traj-viewer list opencode -n 10
+    uv run traj-viewer show opencode 3
 
 ## Screenshots
 
