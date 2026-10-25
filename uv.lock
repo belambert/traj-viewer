@@ -307,7 +307,7 @@ wheels = [
 ]
 
 [[package]]
-name = "traj-grader"
+name = "traj-viewer"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [

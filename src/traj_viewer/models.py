@@ -1,7 +1,7 @@
 """Normalized, dataset-agnostic representation of an agent trajectory.
 
-Every dataset adapter converts its raw rows into these types, so renderers and
-(eventually) graders only ever have to understand one shape.
+Every dataset adapter converts its raw rows into these types, so renderers only
+ever have to understand one shape.
 """
 
 from __future__ import annotations

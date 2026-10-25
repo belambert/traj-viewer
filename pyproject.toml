@@ -1,7 +1,7 @@
 [project]
-name = "traj-grader"
+name = "traj-viewer"
 version = "0.1.0"
-description = "View and grade agent trajectories"
+description = "View agent trajectories"
 readme = "README.md"
 authors = [
     { name = "Ben Lambert", email = "blambert@gmail.com" }
@@ -19,4 +19,4 @@ requires = ["uv_build>=0.9.3,<0.10.0"]
 build-backend = "uv_build"
 
 [project.scripts]
-traj-grader = "traj_grader.cli:app"
+traj-viewer = "traj_viewer.cli:app"
