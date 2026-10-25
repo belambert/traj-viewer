@@ -21,8 +21,8 @@ from typing import Any
 import pyarrow.parquet as pq
 from huggingface_hub import HfFileSystem
 
-from traj_grader.adapters import Adapter, detect_adapter, get_adapter
-from traj_grader.models import Trajectory
+from traj_viewer.adapters import Adapter, detect_adapter, get_adapter
+from traj_viewer.models import Trajectory
 
 _LOCAL_SUFFIXES = {".jsonl", ".json", ".parquet"}
 _BLOCK_SIZE = 8 << 20  # bigger HTTP range reads; row groups are often tens of MB

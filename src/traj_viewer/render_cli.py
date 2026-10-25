@@ -13,7 +13,7 @@ from rich.syntax import Syntax
 from rich.table import Table
 from rich.text import Text
 
-from traj_grader.models import Step, ToolCall, Trajectory
+from traj_viewer.models import Step, ToolCall, Trajectory
 
 ROLE_STYLES = {"system": "magenta", "user": "green", "assistant": "cyan", "tool": "yellow"}
 

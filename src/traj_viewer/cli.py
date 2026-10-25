@@ -1,4 +1,4 @@
-"""Command-line interface: `traj-grader list|show|html|info`."""
+"""Command-line interface: `traj-viewer list|show|html|info`."""
 
 from __future__ import annotations
 
@@ -10,11 +10,11 @@ from typing import Annotated
 import typer
 from rich.console import Console
 
-from traj_grader.loader import Source, iter_trajectories, list_configs, list_splits, load_one
-from traj_grader.render_cli import print_trajectory, render_table
-from traj_grader.render_html import write_html
+from traj_viewer.loader import Source, iter_trajectories, list_configs, list_splits, load_one
+from traj_viewer.render_cli import print_trajectory, render_table
+from traj_viewer.render_html import write_html
 
-app = typer.Typer(no_args_is_help=True, help="View and grade agent trajectories.")
+app = typer.Typer(no_args_is_help=True, help="View agent trajectories.")
 console = Console()
 
 DatasetArg = Annotated[str, typer.Argument(help="HF dataset id (e.g. nebius/SWE-agent-trajectories) or local .jsonl/.parquet")]

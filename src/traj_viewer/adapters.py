@@ -13,7 +13,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
-from traj_grader.models import Step, ToolCall, Trajectory
+from traj_viewer.models import Step, ToolCall, Trajectory
 
 Row = dict[str, Any]
 Converter = Callable[[Row, int, str], Trajectory]

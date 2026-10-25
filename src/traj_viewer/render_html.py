@@ -8,11 +8,11 @@ from dataclasses import asdict
 from importlib.resources import files
 from pathlib import Path
 
-from traj_grader.models import Trajectory
+from traj_viewer.models import Trajectory
 
 
 def render_html(trajs: list[Trajectory], title: str) -> str:
-    template = files("traj_grader").joinpath("templates/viewer.html").read_text()
+    template = files("traj_viewer").joinpath("templates/viewer.html").read_text()
     payload = json.dumps({"title": title, "trajectories": [asdict(t) for t in trajs]}, default=str)
     # Prevent a "</script>" inside trajectory text from terminating the data block.
     payload = payload.replace("</", "<\\/")
