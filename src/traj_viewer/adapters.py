@@ -11,6 +11,7 @@ import json
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Any
 
 from traj_viewer.models import Step, ToolCall, Trajectory
@@ -153,7 +154,76 @@ def convert_chat_messages(row: Row, index: int, source: str) -> Trajectory:
     )
 
 
+# --- opencode sessions (rows built by loader._iter_opencode) -------------------
+
+
+def _join(parts: list[Row], type_: str) -> str:
+    return "\n\n".join(p["text"] for p in parts if p["type"] == type_ and p.get("text"))
+
+
+def _opencode_steps(messages: list[Row]) -> list[Step]:
+    steps: list[Step] = []
+    for msg in messages:
+        parts = msg["parts"]
+        text = _join(parts, "text")
+        if msg["role"] == "user":
+            steps.append(Step(role="user", content=text))
+            continue
+
+        if err := msg.get("error"):
+            note = f"[{err.get('name')}] {(err.get('data') or {}).get('message', '')}"
+            text = f"{text}\n\n{note}" if text else note
+        tools = [p for p in parts if p["type"] == "tool"]
+        reasoning = _join(parts, "reasoning") or None
+        if not (text or reasoning or tools):
+            continue
+
+        calls = [
+            ToolCall(name=t["tool"], arguments=json.dumps(t["state"].get("input") or {}, indent=2), id=t["callID"])
+            for t in tools
+        ]
+        steps.append(Step(role="assistant", content=text, reasoning=reasoning, tool_calls=calls))
+        steps += [
+            Step(role="tool", content=t["state"].get("output") or t["state"].get("error") or "", tool_call_id=t["callID"])
+            for t in tools
+        ]
+    return steps
+
+
+def convert_opencode(row: Row, index: int, source: str) -> Trajectory:
+    s = row["session"]
+    assistant = [m for m in row["oc_messages"] if m["role"] == "assistant"]
+    last = assistant[-1] if assistant else {}
+
+    created = datetime.fromtimestamp(s["time_created"] / 1000, tz=timezone.utc).isoformat(timespec="seconds")
+    metadata = {
+        "session": s["id"],
+        "directory": s["directory"],
+        "created": created,
+        "parent": s["parent_id"],
+        "cost": s["cost"],
+        "tokens_input": s["tokens_input"],
+        "tokens_output": s["tokens_output"],
+    }
+    return Trajectory(
+        id=s["id"],
+        instance_id=s["title"] or s["id"],
+        steps=_opencode_steps(row["oc_messages"]),
+        source=source,
+        index=index,
+        model=next((m["modelID"] for m in assistant if m.get("modelID")), None),
+        exit_status=(last.get("error") or {}).get("name") or last.get("finish"),
+        metadata=metadata,
+    )
+
+
 ADAPTERS: list[Adapter] = [
+    Adapter(
+        name="opencode",
+        required_columns=frozenset({"session", "oc_messages"}),
+        convert=convert_opencode,
+        description="Local opencode sessions from its SQLite database",
+    ),
     Adapter(
         name="swe-agent",
         required_columns=frozenset({"instance_id", "trajectory"}),
